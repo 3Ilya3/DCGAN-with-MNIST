@@ -1,6 +1,8 @@
 import gan as g
 from data import mnist_dataloader
 
+print("Hello")
+
 def main():
     gan = g.GAN()
     gan.train(mnist_dataloader, num_epochs=100)
