@@ -4,6 +4,7 @@ import torch.optim as optim
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import gridspec
+from torch.utils.tensorboard import SummaryWriter
 
 import networks as n
 
@@ -11,7 +12,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class GAN():
 
-  def __init__(self, learning_rate=0.0002):
+  def __init__(self, learning_rate):
     self.learning_rate = learning_rate
     self.generator = n.Generator().to(device)
     self.discriminator = n.Discriminator().to(device)
@@ -24,7 +25,9 @@ class GAN():
 
     # Оптимизаторы
     self.g_optimizer = optim.Adam(self.generator.parameters(), lr=learning_rate)
-    self.d_optimizer = optim.Adam(self.discriminator.parameters(), lr=learning_rate)                              
+    self.d_optimizer = optim.Adam(self.discriminator.parameters(), lr=learning_rate) 
+
+    self.writer = SummaryWriter(log_dir='logs/gan_experiment')                             
 
   def forward(self, z):
     """
@@ -106,19 +109,21 @@ class GAN():
                 g_loss = self.generator_step(batch)
                 d_loss = self.discriminator_step(batch)
 
+                # Логирование потерь в TensorBoard
+                self.writer.add_scalar('Loss/Generator', g_loss.item(), epoch)
+                self.writer.add_scalar('Loss/Discriminator', d_loss.item(), epoch)
+
             # Сохранение прогресса
             epoch_test_images = self.forward(self.test_noises)
             self.test_progression.append(epoch_test_images.detach().cpu().numpy())
+        self.save_model(f'model_{epoch + 1}')
+        self.visualize_images(epoch)
 
-            # Визуализация
-            self.visualize_images(epoch)
-                 
-    
   def visualize_images(self, epoch):
       plt.ion()
       nrow, ncol = 3, 8  # Размеры сетки
       fig = plt.figure(figsize=((ncol + 1) * 2, (nrow + 1) * 2))
-      fig.suptitle(f'Epoch {epoch + 1}', fontsize=30)
+      fig.suptitle(f'Epoch {epoch}', fontsize=30)
       gs = gridspec.GridSpec(nrow, ncol,
                              wspace=0.0, hspace=0.0,
                              top=1. - 0.5 / (nrow + 1), bottom=0.5 / (nrow + 1),
@@ -134,5 +139,21 @@ class GAN():
       plt.show()
       plt.pause(0.001)  # Обновляем визуализацию
       plt.pause(3)
-      plt.close(fig)  # Закрываем текущее окно, чтобы оно не оставалось открытым
+      #plt.close(fig)  # Закрываем текущее окно, чтобы оно не оставалось открытым
 
+  def save_model(self, path):
+        torch.save({
+            'generator_state_dict': self.generator.state_dict(),
+            'discriminator_state_dict': self.discriminator.state_dict(),
+            'optimizer_g_state_dict': self.g_optimizer.state_dict(),
+            'optimizer_d_state_dict': self.d_optimizer.state_dict(),
+            'test_progression': self.test_progression
+        }, path)
+
+  def load_model(self, path):
+      checkpoint = torch.load(path)
+      self.generator.load_state_dict(checkpoint['generator_state_dict'])
+      self.discriminator.load_state_dict(checkpoint['discriminator_state_dict'])
+      self.g_optimizer.load_state_dict(checkpoint['optimizer_g_state_dict'])
+      self.d_optimizer.load_state_dict(checkpoint['optimizer_d_state_dict'])
+      self.test_progression = checkpoint['test_progression']
