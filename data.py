@@ -11,6 +11,6 @@ mnist_transforms = transforms.Compose([transforms.ToTensor(),                   
                                        transforms.Normalize(mean=0.5, std=0.5),             # Нормализация пикселей тензора
                                        transforms.Lambda(reshape_tensor)])                  # Изменяем форму тензора, чтобы он стал вектором 28х28=784
                                                                                             # -1 это дайте мне тензор с 784 количеством столбцов, а количество строк функция сама вычислит                                                                                          
-data = datasets.MNIST(root='./data', train=True, download=True, transform=mnist_transforms)
+data = datasets.MNIST(root='./dataset', train=True, download=True, transform=mnist_transforms)
 
 mnist_dataloader = DataLoader(data, batch_size=128, shuffle=True, num_workers=4, persistent_workers=True)            # Обьект который позволяет итерироваться по data. Элемент data это кортеж(тензор(вектор), метка(0-9))

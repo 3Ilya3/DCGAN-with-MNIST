@@ -4,7 +4,7 @@ import torch.optim as optim
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import gridspec
-from torch.utils.tensorboard import SummaryWriter
+#from torch.utils.tensorboard import SummaryWriter
 
 import networks as n
 
@@ -12,7 +12,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class GAN():
 
-  def __init__(self, learning_rate):
+  def __init__(self, learning_rate, model_path=None):
     self.learning_rate = learning_rate
     self.generator = n.Generator().to(device)
     self.discriminator = n.Discriminator().to(device)
@@ -27,7 +27,12 @@ class GAN():
     self.g_optimizer = optim.Adam(self.generator.parameters(), lr=learning_rate)
     self.d_optimizer = optim.Adam(self.discriminator.parameters(), lr=learning_rate) 
 
-    self.writer = SummaryWriter(log_dir='logs/gan_experiment')                             
+    self.current_epoch = 0
+
+    if model_path is not None:
+            self.load_model(model_path)
+
+    #self.writer = SummaryWriter(log_dir='logs/gan_experiment')                             
 
   def forward(self, z):
     """
@@ -100,7 +105,11 @@ class GAN():
   '''
 
   def train(self, dataloader, num_epochs):
-        for epoch in range(num_epochs):
+        
+        current_epoch = self.current_epoch
+        total_epoch = num_epochs + current_epoch
+
+        for epoch in range(current_epoch, total_epoch + 1):
             # _ это метки цифр (0-9), в случае GAN метки для реальных данных не нужны. Мы занимаемся генерацией, а не классификацией.
             for batch, _ in dataloader: 
                 batch = batch.to(device)
@@ -110,17 +119,22 @@ class GAN():
                 d_loss = self.discriminator_step(batch)
 
                 # Логирование потерь в TensorBoard
-                self.writer.add_scalar('Loss/Generator', g_loss.item(), epoch)
-                self.writer.add_scalar('Loss/Discriminator', d_loss.item(), epoch)
+                #self.writer.add_scalar('Loss/Generator', g_loss.item(), epoch)
+                #self.writer.add_scalar('Loss/Discriminator', d_loss.item(), epoch)
 
             # Сохранение прогресса
             epoch_test_images = self.forward(self.test_noises)
             self.test_progression.append(epoch_test_images.detach().cpu().numpy())
-        self.save_model(f'model_{epoch + 1}')
-        self.visualize_images(epoch)
+
+            if epoch % 10 == 0:
+                self.current_epoch = epoch
+                self.save_model(f'models/model_{epoch}')
+                self.visualize_images(epoch)
+
+        self.current_epoch = total_epoch
 
   def visualize_images(self, epoch):
-      plt.ion()
+      #plt.ion()
       nrow, ncol = 3, 8  # Размеры сетки
       fig = plt.figure(figsize=((ncol + 1) * 2, (nrow + 1) * 2))
       fig.suptitle(f'Epoch {epoch}', fontsize=30)
@@ -136,9 +150,11 @@ class GAN():
               ax = plt.subplot(gs[i, j])
               ax.imshow(img, cmap='gray')
               ax.axis('off')
-      plt.show()
-      plt.pause(0.001)  # Обновляем визуализацию
-      plt.pause(3)
+      
+      plt.savefig(f'images/image_of_epoch_{epoch}.png')
+      #plt.show()
+      #plt.pause(0.001)  # Обновляем визуализацию
+      #plt.pause(3)
       #plt.close(fig)  # Закрываем текущее окно, чтобы оно не оставалось открытым
 
   def save_model(self, path):
@@ -147,8 +163,10 @@ class GAN():
             'discriminator_state_dict': self.discriminator.state_dict(),
             'optimizer_g_state_dict': self.g_optimizer.state_dict(),
             'optimizer_d_state_dict': self.d_optimizer.state_dict(),
-            'test_progression': self.test_progression
+            'test_progression': self.test_progression,
+            'current_epoch': self.current_epoch
         }, path)
+        print(f'Model saved as {path} at epoch {self.current_epoch}')
 
   def load_model(self, path):
       checkpoint = torch.load(path)
@@ -157,3 +175,5 @@ class GAN():
       self.g_optimizer.load_state_dict(checkpoint['optimizer_g_state_dict'])
       self.d_optimizer.load_state_dict(checkpoint['optimizer_d_state_dict'])
       self.test_progression = checkpoint['test_progression']
+      self.current_epoch = checkpoint['current_epoch'] + 1
+      print(f'Model loaded from {path}, starting from epoch {self.current_epoch}')
