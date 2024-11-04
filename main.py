@@ -3,8 +3,8 @@ from data import mnist_dataloader
 
 def main():
     lr = 0.0002
-    gan = g.GAN(lr, model_path='models/model_50')
-    gan.train(mnist_dataloader, num_epochs=50)
+    gan = g.GAN(lr, model_path='models/model_100')
+    gan.train(mnist_dataloader, num_epochs=400)
     
 
 if __name__ == "__main__":

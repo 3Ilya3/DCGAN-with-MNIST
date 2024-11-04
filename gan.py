@@ -155,7 +155,7 @@ class GAN():
       #plt.show()
       #plt.pause(0.001)  # Обновляем визуализацию
       #plt.pause(3)
-      #plt.close(fig)  # Закрываем текущее окно, чтобы оно не оставалось открытым
+      plt.close(fig)  # Закрываем текущее окно, чтобы оно не оставалось открытым
 
   def save_model(self, path):
         torch.save({
