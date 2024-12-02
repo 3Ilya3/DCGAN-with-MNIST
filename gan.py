@@ -4,6 +4,7 @@ import torch.optim as optim
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import gridspec
+from tqdm import tqdm
 #from torch.utils.tensorboard import SummaryWriter
 
 import networks as n
@@ -44,7 +45,7 @@ class GAN():
   def generator_step(self, x):
     
     # Создание случайного шума для генерации изображения. x.shape[0] это количество примеров в текущем батче. Как и везде находится в 1 размерности
-    z = torch.randn(x.shape[0], 1, 100, device=device) 
+    z = torch.randn(x.shape[0], 1, 100, device=device)
 
     # Генерация изображения
     generated_imgs = self.forward(z)
@@ -110,26 +111,37 @@ class GAN():
         total_epoch = num_epochs + current_epoch
 
         for epoch in range(current_epoch, total_epoch + 1):
-            # _ это метки цифр (0-9), в случае GAN метки для реальных данных не нужны. Мы занимаемся генерацией, а не классификацией.
-            for batch, _ in dataloader: 
-                batch = batch.to(device)
+            
+            with tqdm(dataloader, desc=f"Epoch {epoch}/{total_epoch}", unit="batch") as pbar:
+                # _ это метки цифр (0-9), в случае GAN метки для реальных данных не нужны. Мы занимаемся генерацией, а не классификацией.
+                for batch, _ in pbar: 
+                    batch = batch.to(device)
 
-                # Обучение генератора и дискриминатора
-                g_loss = self.generator_step(batch)
-                d_loss = self.discriminator_step(batch)
+                    # Обучение генератора и дискриминатора
+                    g_loss = self.generator_step(batch)
+                    d_loss = self.discriminator_step(batch)
 
-                # Логирование потерь в TensorBoard
-                #self.writer.add_scalar('Loss/Generator', g_loss.item(), epoch)
-                #self.writer.add_scalar('Loss/Discriminator', d_loss.item(), epoch)
+                    # Логирование потерь в TensorBoard
+                    #self.writer.add_scalar('Loss/Generator', g_loss.item(), epoch)
+                    #self.writer.add_scalar('Loss/Discriminator', d_loss.item(), epoch)
+
+                    pbar.set_postfix(G_loss=g_loss, D_loss=d_loss)
 
             # Сохранение прогресса
             epoch_test_images = self.forward(self.test_noises)
             self.test_progression.append(epoch_test_images.detach().cpu().numpy())
 
-            if epoch % 10 == 0:
+
+            if epoch % 100 == 0:
                 self.current_epoch = epoch
-                self.save_model(f'models/model_{epoch}')
+                #self.save_model(f'models/model_{epoch}')
                 self.visualize_images(epoch)
+                
+
+            if epoch % 500 == 0:
+               self.current_epoch = epoch
+               self.save_model(f'models/model_{epoch}')
+               #self.visualize_images(epoch)
 
         self.current_epoch = total_epoch
 
