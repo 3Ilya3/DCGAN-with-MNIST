@@ -21,12 +21,12 @@ class GAN():
     После каждой эпохи мы генерируем 100 изображений (случайных шумовых векторов длиной 100 из стандартного нормального распределения. Тензор, состоящий из 100 тензоров).
     Сохраняем выходные изображения в списке test_progression, чтобы отслеживать и визуализировать прогресс генератора на протяжении обучения. 
     '''
-    self.test_noises = torch.randn(100,1,100, device=device)
+    self.test_noises = torch.randn(100,n.nz, 1, 1, device=device)
     self.test_progression = []    
 
     # Оптимизаторы
-    self.g_optimizer = optim.Adam(self.generator.parameters(), lr=learning_rate)
-    self.d_optimizer = optim.Adam(self.discriminator.parameters(), lr=learning_rate) 
+    self.g_optimizer = optim.Adam(self.generator.parameters(), lr=learning_rate, betas=(0.5, 0.999))
+    self.d_optimizer = optim.Adam(self.discriminator.parameters(), lr=learning_rate, betas=(0.5, 0.999)) 
 
     self.current_epoch = 0
 
@@ -45,7 +45,7 @@ class GAN():
   def generator_step(self, x):
     
     # Создание случайного шума для генерации изображения. x.shape[0] это количество примеров в текущем батче. Как и везде находится в 1 размерности
-    z = torch.randn(x.shape[0], 1, 100, device=device)
+    z = torch.randn(x.shape[0], n.nz, 1, 1, device=device)
 
     # Генерация изображения
     generated_imgs = self.forward(z)
@@ -80,8 +80,10 @@ class GAN():
     loss_real = nn.BCELoss()(d_output_real, torch.ones(x.shape[0], device=device))
 
     # Прогоняем поддельные изображения, сгенерированные генератором из шума. loss_fake будет низкой, если дискриминатор правильно определяет их как поддельные
-    z = torch.randn(x.shape[0], 1, 100, device=device)
+    z = torch.randn(x.shape[0], n.nz, 1, 1, device=device)
     generated_imgs = self.forward(z)
+
+
     d_output_fake = torch.squeeze(self.discriminator(generated_imgs))
     loss_fake = nn.BCELoss()(d_output_fake, torch.zeros(x.shape[0], device=device))  # zeros - тензор с нулями
 
@@ -132,17 +134,11 @@ class GAN():
             self.test_progression.append(epoch_test_images.detach().cpu().numpy())
 
 
-            if epoch % 100 == 0:
+            if epoch % 10 == 0:
                 self.current_epoch = epoch
-                #self.save_model(f'models/model_{epoch}')
+                self.save_model(f'models/model_{epoch}')
                 self.visualize_images(epoch)
                 
-
-            if epoch % 500 == 0:
-               self.current_epoch = epoch
-               self.save_model(f'models/model_{epoch}')
-               #self.visualize_images(epoch)
-
         self.current_epoch = total_epoch
 
   def visualize_images(self, epoch):
