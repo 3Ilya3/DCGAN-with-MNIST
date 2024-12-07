@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import gridspec
 from tqdm import tqdm
-#from torch.utils.tensorboard import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 
 import networks as n
 
@@ -33,7 +33,7 @@ class GAN():
     if model_path is not None:
             self.load_model(model_path)
 
-    #self.writer = SummaryWriter(log_dir='logs/gan_experiment')                             
+    self.writer = SummaryWriter(log_dir='logs/gan_experiment')                             
 
   def forward(self, z):
     """
@@ -114,6 +114,9 @@ class GAN():
 
         for epoch in range(current_epoch, total_epoch + 1):
             
+
+            num_batches = 0
+            
             with tqdm(dataloader, desc=f"Epoch {epoch}/{total_epoch}", unit="batch") as pbar:
                 # _ это метки цифр (0-9), в случае GAN метки для реальных данных не нужны. Мы занимаемся генерацией, а не классификацией.
                 for batch, _ in pbar: 
@@ -123,9 +126,14 @@ class GAN():
                     g_loss = self.generator_step(batch)
                     d_loss = self.discriminator_step(batch)
 
+
+                    
+                    num_batches += 1
+
+
                     # Логирование потерь в TensorBoard
-                    #self.writer.add_scalar('Loss/Generator', g_loss.item(), epoch)
-                    #self.writer.add_scalar('Loss/Discriminator', d_loss.item(), epoch)
+                    self.writer.add_scalar('Loss/Generator', g_loss, epoch * len(dataloader) + num_batches)
+                    self.writer.add_scalar('Loss/Discriminator', d_loss, epoch * len(dataloader) + num_batches)
 
                     pbar.set_postfix(G_loss=g_loss, D_loss=d_loss)
 
@@ -134,12 +142,18 @@ class GAN():
             self.test_progression.append(epoch_test_images.detach().cpu().numpy())
 
 
-            if epoch % 10 == 0:
+            if epoch % 20 == 0:
+                self.current_epoch = epoch
+                #self.save_model(f'models/model_{epoch}')
+                self.visualize_images(epoch)
+            
+            if epoch % 50 == 0:
                 self.current_epoch = epoch
                 self.save_model(f'models/model_{epoch}')
-                self.visualize_images(epoch)
+
                 
         self.current_epoch = total_epoch
+        self.writer.close()
 
   def visualize_images(self, epoch):
       #plt.ion()
